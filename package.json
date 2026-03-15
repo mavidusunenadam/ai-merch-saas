@@ -1,5 +1,5 @@
 {
-  "name": "ai-merch-saas",
+  "name": "ai-ebiidesign",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -10,14 +10,20 @@
     "prisma:seed": "node prisma/seed.js"
   },
   "dependencies": {
-    "@prisma/client": "6.15.0",
-    "next": "16.1.6",
-    "react": "19.1.0",
-    "react-dom": "19.1.0"
+    "@prisma/client": "^6.15.0",
+    "@vercel/blob": "^2.3.1",
+    "next": "^16.1.6",
+    "openai": "^5.20.0",
+    "prisma": "^6.15.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "prisma": "6.15.0",
-    "tsx": "^4.20.5",
-    "typescript": "^5"
+    "@types/node": "^22.13.10",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "eslint": "^9.21.0",
+    "eslint-config-next": "^16.1.6",
+    "typescript": "^5.8.2"
   }
 }
