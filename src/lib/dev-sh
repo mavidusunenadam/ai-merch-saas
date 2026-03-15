@@ -1,0 +1,6 @@
+export const DEFAULT_DEV_SHOP_DOMAIN = "dev-store.local";
+
+export function getDevShopDomainFromRequest(req: Request) {
+  const headerShop = req.headers.get("x-dev-shop-domain");
+  return headerShop || DEFAULT_DEV_SHOP_DOMAIN;
+}

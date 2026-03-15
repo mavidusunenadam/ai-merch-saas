@@ -1,0 +1,135 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+
+
+enum PlanType {
+  FREE
+  PRO
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  INACTIVE
+  CANCELED
+  TRIAL
+}
+
+enum CreditLogType {
+  FREE_GRANT
+  MONTHLY_RENEWAL
+  IMAGE_GENERATION
+  BG_REMOVAL
+  MANUAL_ADJUSTMENT
+}
+
+model Shop {
+  id                        String                @id @default(cuid())
+  shopDomain                String                @unique
+  shopifyShopId             String?               @unique
+  accessToken               String?
+  plan                      PlanType              @default(FREE)
+  creditsRemaining          Int                   @default(10)
+  isActive                  Boolean               @default(true)
+  selectedProductTemplateId String?
+  createdAt                 DateTime              @default(now())
+  updatedAt                 DateTime              @updatedAt
+
+  subscription              Subscription?
+  promptSelections          ShopPromptSelection[]
+  creditLogs                CreditLog[]
+  generationSessions        GenerationSession[]
+}
+
+
+model GenerationSession {
+  id                        String   @id @default(cuid())
+  shopId                    String
+  selectedPromptId          String?
+  sourceImageUrl            String?
+  originalFileName          String?
+  selectedResultId          String?
+  finalImageUrl             String?
+  selectedProductTemplateId String?
+  cartPayloadJson           String?
+  status                    String   @default("draft")
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  shop                      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+}
+
+
+
+model PromptPreset {
+  id               String                @id @default(cuid())
+  key              String                @unique
+  title            String
+  description      String?
+  promptText       String                
+  previewImage     String?
+  isActive         Boolean               @default(true)
+  createdAt        DateTime              @default(now())
+
+  shopSelections   ShopPromptSelection[]
+}
+
+model ShopPromptSelection {
+  id              String       @id @default(cuid())
+  shopId          String
+  promptPresetId  String
+  createdAt       DateTime     @default(now())
+
+  shop            Shop         @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  promptPreset    PromptPreset @relation(fields: [promptPresetId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, promptPresetId])
+}
+
+model Subscription {
+  id               String              @id @default(cuid())
+  shopId           String              @unique
+  planName         PlanType            @default(FREE)
+  status           SubscriptionStatus  @default(TRIAL)
+  monthlyCredits   Int                 @default(10)
+  billingCycle     String?             // monthly
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  shop             Shop                @relation(fields: [shopId], references: [id], onDelete: Cascade)
+}
+
+model CreditLog {
+  id          String         @id @default(cuid())
+  shopId      String
+  type        CreditLogType
+  amount      Int
+  reason      String?
+  createdAt   DateTime       @default(now())
+
+  shop        Shop           @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+}
+
+model ProductTemplate {
+  id                   String   @id @default(cuid())
+  key                  String   @unique
+  name                 String
+  type                 String
+  mockupImage          String?
+  printAreaX           Int
+  printAreaY           Int
+  printAreaWidth       Int
+  printAreaHeight      Int
+  shopifyProductId     String?
+  shopifyVariantId     String?
+  shopifyMerchandiseId String?
+  isActive             Boolean  @default(true)
+  createdAt            DateTime @default(now())
+}
