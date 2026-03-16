@@ -1,6 +1,22 @@
-import { PrismaClient } from "@prisma/client";
+import crypto from "crypto";
 
-const prisma = new PrismaClient();
+function buildInstallUrl(shop: string) {
+  const apiKey = process.env.SHOPIFY_API_KEY!;
+  const scopes = process.env.SHOPIFY_SCOPES!;
+  const appUrl = process.env.SHOPIFY_APP_URL!;
+
+  const redirectUri = `${appUrl}/api/shopify/auth/callback`;
+  const state = crypto.randomBytes(16).toString("hex");
+
+  const params = new URLSearchParams({
+    client_id: apiKey,
+    scope: scopes,
+    redirect_uri: redirectUri,
+    state,
+  });
+
+  return `https://${shop}/admin/oauth/authorize?${params.toString()}`;
+}
 
 export async function GET(req: Request) {
   try {
@@ -11,35 +27,11 @@ export async function GET(req: Request) {
       return Response.json({ error: "shop is required" }, { status: 400 });
     }
 
-    const existingShop = await prisma.shop.findUnique({
-      where: { shopDomain: shop },
-    });
+    const installUrl = buildInstallUrl(shop);
 
-    if (existingShop) {
-      return Response.redirect(new URL("/dashboard/prompts", req.url));
-    }
-
-    const createdShop = await prisma.shop.create({
-      data: {
-        shopDomain: shop,
-        plan: "FREE",
-        creditsRemaining: 10,
-        isActive: true,
-      },
-    });
-
-    await prisma.creditLog.create({
-      data: {
-        shopId: createdShop.id,
-        type: "FREE_GRANT",
-        amount: 10,
-        reason: "Initial free credits on install",
-      },
-    });
-
-    return Response.redirect(new URL("/dashboard/prompts", req.url));
+    return Response.redirect(installUrl);
   } catch (error) {
-    console.error("Install route error:", error);
-    return Response.json({ error: "Install failed" }, { status: 500 });
+    console.error("Shopify install error:", error);
+    return Response.json({ error: "Failed to start install" }, { status: 500 });
   }
 }
