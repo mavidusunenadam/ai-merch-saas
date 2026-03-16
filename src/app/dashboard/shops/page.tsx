@@ -17,22 +17,28 @@ export default function DashboardShopsPage() {
   const [activeShop, setActiveShop] = useState<string>("");
 
   useEffect(() => {
-    const fetchShops = async () => {
-      try {
-        const res = await fetch("/api/dev/shops");
-        const data = await res.json();
-        setShops(data || []);
+  const fetchShops = async () => {
+  try {
+    const res = await fetch("/api/dev/shops");
+    const data = await res.json();
 
-        const saved = window.localStorage.getItem("activeDevShopDomain");
-        if (saved) {
-          setActiveShop(saved);
-        }
-      } catch (error) {
-        console.error("Failed to load shops:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    if (!res.ok) {
+      throw new Error(data.error || "Failed to load shops");
+    }
+
+    setShops(Array.isArray(data) ? data : []);
+
+    const saved = window.localStorage.getItem("activeDevShopDomain");
+    if (saved) {
+      setActiveShop(saved);
+    }
+  } catch (error) {
+    console.error("Failed to load shops:", error);
+    setShops([]);
+  } finally {
+    setLoading(false);
+  }
+};
 
     fetchShops();
   }, []);
