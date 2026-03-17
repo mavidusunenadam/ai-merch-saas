@@ -7,20 +7,20 @@ export async function GET(req: Request) {
   try {
 
     const url = new URL(req.url);
-    const shopParam = url.searchParams.get("shop");
+    const shopFromQuery = url.searchParams.get("shop");
 
     const shopDomain =
-      shopParam || getDevShopDomainFromRequest(req);
+      shopFromQuery || getDevShopDomainFromRequest(req);
 
     const shop = await prisma.shop.findUnique({
       where: { shopDomain },
       include: {
         promptSelections: {
           include: {
-            promptPreset: true,
-          },
-        },
-      },
+            promptPreset: true
+          }
+        }
+      }
     });
 
     if (!shop) {
@@ -33,7 +33,7 @@ export async function GET(req: Request) {
 
     return Response.json({
       shopDomain: shop.shopDomain,
-      prompts,
+      prompts
     });
 
   } catch (error) {
