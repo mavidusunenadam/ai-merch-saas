@@ -5,7 +5,9 @@ const prisma = new PrismaClient();
 
 export async function GET(req: Request) {
   try {
-    const shopDomain = getDevShopDomainFromRequest(req);
+	  
+  const shopDomain =
+  searchParams.get("shop") || getDevShopDomainFromRequest(req);
 
     const shop = await prisma.shop.findUnique({
       where: { shopDomain },
