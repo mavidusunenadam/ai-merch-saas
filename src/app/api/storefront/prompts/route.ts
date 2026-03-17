@@ -5,9 +5,11 @@ const prisma = new PrismaClient();
 
 export async function GET(req: Request) {
   try {
-	  
-  const shopDomain =
-  searchParams.get("shop") || getDevShopDomainFromRequest(req);
+
+    const { searchParams } = new URL(req.url);
+
+    const shopDomain =
+      searchParams.get("shop") || getDevShopDomainFromRequest(req);
 
     const shop = await prisma.shop.findUnique({
       where: { shopDomain },
@@ -24,14 +26,18 @@ export async function GET(req: Request) {
       return Response.json({ error: "Shop not found" }, { status: 404 });
     }
 
-    const prompts = shop.promptSelections.map((selection) => selection.promptPreset);
+    const prompts = shop.promptSelections.map(
+      (selection) => selection.promptPreset
+    );
 
     return Response.json({
       shopDomain: shop.shopDomain,
       prompts,
     });
+
   } catch (error) {
     console.error("Storefront prompts error:", error);
+
     return Response.json(
       { error: "Failed to load storefront prompts" },
       { status: 500 }
