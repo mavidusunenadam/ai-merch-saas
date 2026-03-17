@@ -1,4 +1,4 @@
-const { PrismaClient } = require("@prisma/client");
+import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -119,8 +119,7 @@ const productTemplates = [
 ];
 
 async function main() {
-	
-	  for (const product of productTemplates) {
+  for (const product of productTemplates) {
     await prisma.productTemplate.upsert({
       where: { key: product.key },
       update: {
@@ -168,7 +167,38 @@ async function main() {
     });
   }
 
+  const shop = await prisma.shop.findUnique({
+  where: { shopDomain: "demo-store.myshopify.com" },
+});
+
+if (!shop) {
+  console.log("⚠️ Shop not found for prompt assignment.");
+  return;
+}
+
+const presets = await prisma.promptPreset.findMany();
+
+for (const preset of presets) {
+  await prisma.shopPromptSelection.upsert({
+    where: {
+      shopId_promptPresetId: {
+        shopId: shop.id,
+        promptPresetId: preset.id,
+      },
+    },
+    update: {},
+    create: {
+      shopId: shop.id,
+      promptPresetId: preset.id,
+    },
+  });
+}
+
+  console.log("Seeding prompts for shop:", shop.shopDomain);
+
   console.log("✅ Prompt presets seeded successfully.");
+  console.log("✅ Product templates seeded successfully.");
+  console.log("✅ Demo shop prompt selections seeded successfully.");
 }
 
 main()
