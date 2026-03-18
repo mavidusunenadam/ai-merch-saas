@@ -2,7 +2,7 @@
 
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import { fetchWithActiveShop } from "@/lib/fetch-with-shop";
-
+import { getShopFromUrl } from "@/lib/shop-context";
 type PromptPreset = {
   id: string;
   key: string;
@@ -45,10 +45,7 @@ export default function BuilderPage() {
         const [healthRes, promptsRes, shopRes] = await Promise.all([
           fetchWithActiveShop("/api/storefront/health"),
           fetchWithActiveShop("/api/dev/shop"),
-		  import { getShopFromUrl } from "@/lib/shop-context";
-
           const shop = getShopFromUrl();
-
           fetchWithActiveShop(`/api/storefront/prompts?shop=${shop}`)
         ]);
 
