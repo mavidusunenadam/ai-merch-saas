@@ -4,7 +4,7 @@ import OpenAI from "openai";
 const prisma = new PrismaClient();
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
 export async function POST(req: Request) {
@@ -20,14 +20,18 @@ export async function POST(req: Request) {
     }
 
     const shop = await prisma.shop.findUnique({
-      where: { shopDomain }
+      where: { shopDomain },
+      include: {
+        promptSelections: {
+          include: {
+            promptPreset: true,
+          },
+        },
+      },
     });
 
     if (!shop) {
-      return Response.json(
-        { error: "Shop not found" },
-        { status: 404 }
-      );
+      return Response.json({ error: "Shop not found" }, { status: 404 });
     }
 
     if (shop.creditsRemaining <= 0) {
@@ -37,70 +41,87 @@ export async function POST(req: Request) {
       );
     }
 
-    const formData = await req.formData();
-    const file = formData.get("file") as File;
+    const prompts = shop.promptSelections
+      .map((selection) => selection.promptPreset)
+      .filter((preset) => preset?.isActive)
+      .slice(0, 4);
 
-    if (!file) {
+    if (!prompts.length) {
+      return Response.json(
+        { error: "No active prompts configured for this shop" },
+        { status: 400 }
+      );
+    }
+
+    const formData = await req.formData();
+    const file = formData.get("file");
+
+    if (!(file instanceof File)) {
       return Response.json(
         { error: "No file uploaded" },
         { status: 400 }
       );
     }
 
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    const results: {
+      key: string;
+      title: string;
+      url: string;
+    }[] = [];
 
-    const prompts = await prisma.promptPreset.findMany({
-      where: { isActive: true }
-    });
-
-    if (!prompts.length) {
-      return Response.json(
-        { error: "No prompts configured" },
-        { status: 500 }
-      );
-    }
-
-    const results = [];
-
-    for (const preset of prompts.slice(0, 4)) {
+    for (const preset of prompts) {
       const response = await openai.images.edit({
         model: "gpt-image-1",
-        image: buffer,
+        image: file,
         prompt: preset.promptText,
-        size: "1024x1024"
+        size: "1024x1024",
       });
 
-      const image = response.data[0];
+      const firstImage = response.data?.[0];
+
+      if (!firstImage?.b64_json) {
+        throw new Error(`No image returned for preset: ${preset.key}`);
+      }
 
       results.push({
         key: preset.key,
         title: preset.title,
-        url: `data:image/png;base64,${image.b64_json}`
+        url: `data:image/png;base64,${firstImage.b64_json}`,
       });
     }
 
-    await prisma.shop.update({
+    const updatedShop = await prisma.shop.update({
       where: { id: shop.id },
       data: {
         creditsRemaining: {
-          decrement: 1
-        }
-      }
+          decrement: 1,
+        },
+      },
+    });
+
+    await prisma.creditLog.create({
+      data: {
+        shopId: shop.id,
+        type: "IMAGE_GENERATION",
+        amount: -1,
+        reason: `Style generation used 1 credit for shop ${shop.shopDomain}`,
+      },
     });
 
     return Response.json({
       success: true,
       results,
-      creditsRemaining: shop.creditsRemaining - 1
+      creditsRemaining: updatedShop.creditsRemaining,
     });
-
   } catch (error) {
     console.error("GENERATE STYLES ERROR:", error);
 
     return Response.json(
       {
-        error: "Image generation failed"
+        error:
+          error instanceof Error
+            ? error.message
+            : "Image generation failed",
       },
       { status: 500 }
     );
