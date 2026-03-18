@@ -34,7 +34,7 @@ export default function BuilderPage() {
         const [healthRes, promptRes] = await Promise.all([
           fetchWithActiveShop("/api/storefront/health"),
           fetchWithActiveShop(
-            `/api/storefront/prompts?shop=${encodeURIComponent(shop)}`
+            `/api/storefront/prompts?shop=${encodeURIComponent(shop  `/api/storefront/prompts?shop=${encodeURIComponent(shop || "")}`)}`
           ),
         ]);
 
@@ -66,7 +66,7 @@ export default function BuilderPage() {
       formData.append("file", file);
 
       const res = await fetchWithActiveShop(
-        `/api/generate-styles?shop=${encodeURIComponent(shop)}`,
+        `/api/generate-styles?shop=${encodeURIComponent(shop || "")}`,
         {
           method: "POST",
           body: formData,
