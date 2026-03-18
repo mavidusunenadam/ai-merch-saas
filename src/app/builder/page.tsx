@@ -44,8 +44,12 @@ export default function BuilderPage() {
       try {
         const [healthRes, promptsRes, shopRes] = await Promise.all([
           fetchWithActiveShop("/api/storefront/health"),
-          fetchWithActiveShop("/api/storefront/prompts"),
           fetchWithActiveShop("/api/dev/shop"),
+		  import { getShopFromUrl } from "@/lib/shop-context";
+
+          const shop = getShopFromUrl();
+
+          fetchWithActiveShop(`/api/storefront/prompts?shop=${shop}`)
         ]);
 
         const healthData = await healthRes.json();
