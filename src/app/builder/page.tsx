@@ -3,6 +3,7 @@
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import { fetchWithActiveShop } from "@/lib/fetch-with-shop";
 import { getShopFromUrl } from "@/lib/shop-context";
+
 type PromptPreset = {
   id: string;
   key: string;
@@ -42,11 +43,16 @@ export default function BuilderPage() {
   useEffect(() => {
     const fetchBuilderData = async () => {
       try {
+        const shop = getShopFromUrl();
+
         const [healthRes, promptsRes, shopRes] = await Promise.all([
-          fetchWithActiveShop("/api/storefront/health"),
+          fetchWithActiveShop(
+            `/api/storefront/health${shop ? `?shop=${encodeURIComponent(shop)}` : ""}`
+          ),
+          fetchWithActiveShop(
+            `/api/storefront/prompts${shop ? `?shop=${encodeURIComponent(shop)}` : ""}`
+          ),
           fetchWithActiveShop("/api/dev/shop"),
-          const shop = getShopFromUrl();
-          fetchWithActiveShop(`/api/storefront/prompts?shop=${shop}`)
         ]);
 
         const healthData = await healthRes.json();
@@ -61,7 +67,7 @@ export default function BuilderPage() {
           setBuilderMessage("");
         }
 
-        setPrompts(promptsData.prompts || []);
+        setPrompts(Array.isArray(promptsData.prompts) ? promptsData.prompts : []);
         setCreditsRemaining(shopData.creditsRemaining ?? null);
       } catch (error) {
         console.error("Failed to load builder data:", error);
@@ -95,17 +101,24 @@ export default function BuilderPage() {
 
   const handleGenerate = async (sessionId: string) => {
     try {
+      const shop = getShopFromUrl();
+
       setIsGenerating(true);
 
-      const res = await fetchWithActiveShop("/api/builder/generate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          sessionId,
-        }),
-      });
+      const formData = new FormData();
+
+      if (uploadedImage) {
+        const blob = await fetch(uploadedImage).then((r) => r.blob());
+        formData.append("file", blob, uploadedFileName || "upload.png");
+      }
+
+      const res = await fetchWithActiveShop(
+        `/api/generate-styles${shop ? `?shop=${encodeURIComponent(shop)}` : ""}`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
 
       const data = await res.json();
 
@@ -113,11 +126,22 @@ export default function BuilderPage() {
         throw new Error(data.error || "Failed to generate results");
       }
 
-      setResults(data.results || []);
+      const mappedResults: GeneratedResult[] = Array.isArray(data.results)
+        ? data.results.map((item: any, index: number) => ({
+            id: `${sessionId}-${index}`,
+            label: item.title || item.key || `Result ${index + 1}`,
+            imageUrl: item.url,
+          }))
+        : [];
+
+      setResults(mappedResults);
+      setCreditsRemaining(data.creditsRemaining ?? creditsRemaining);
       setSessionMessage("Mock results generated successfully.");
     } catch (error) {
       console.error(error);
-      setSessionMessage("Failed to generate results.");
+      setSessionMessage(
+        error instanceof Error ? error.message : "Failed to generate results."
+      );
     } finally {
       setIsGenerating(false);
     }
@@ -170,7 +194,9 @@ export default function BuilderPage() {
       await handleGenerate(data.session.id);
     } catch (error) {
       console.error(error);
-      setSessionMessage("Failed to create session.");
+      setSessionMessage(
+        error instanceof Error ? error.message : "Failed to create session."
+      );
     } finally {
       setCreatingSession(false);
     }
@@ -220,7 +246,9 @@ export default function BuilderPage() {
       window.localStorage.setItem("latestBuilderSessionId", createdSessionId);
     } catch (error) {
       console.error(error);
-      setResultMessage("Failed to save selected design.");
+      setResultMessage(
+        error instanceof Error ? error.message : "Failed to save selected design."
+      );
     } finally {
       setSavingResult(false);
     }
@@ -562,10 +590,7 @@ export default function BuilderPage() {
 
               {createdSessionId && resultMessage.toLowerCase().includes("successfully") && (
                 <div className="mt-5">
-                  <a
-                    href="/builder/mockup"
-                    className="btn-outline w-full"
-                  >
+                  <a href="/builder/mockup" className="btn-outline w-full">
                     Continue to Mockup
                   </a>
                 </div>
