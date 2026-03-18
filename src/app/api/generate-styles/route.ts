@@ -13,10 +13,7 @@ export async function POST(req: Request) {
     const shopDomain = url.searchParams.get("shop");
 
     if (!shopDomain) {
-      return Response.json(
-        { error: "Shop missing in request" },
-        { status: 400 }
-      );
+      return Response.json({ error: "Shop missing" }, { status: 400 });
     }
 
     const shop = await prisma.shop.findUnique({
@@ -42,13 +39,13 @@ export async function POST(req: Request) {
     }
 
     const prompts = shop.promptSelections
-      .map((selection) => selection.promptPreset)
-      .filter((preset) => preset?.isActive)
+      .map((s) => s.promptPreset)
+      .filter((p) => p?.isActive)
       .slice(0, 4);
 
     if (!prompts.length) {
       return Response.json(
-        { error: "No active prompts configured for this shop" },
+        { error: "No prompts configured" },
         { status: 400 }
       );
     }
@@ -58,35 +55,31 @@ export async function POST(req: Request) {
 
     if (!(file instanceof File)) {
       return Response.json(
-        { error: "No file uploaded" },
+        { error: "Image file missing" },
         { status: 400 }
       );
     }
 
-    const results: {
-      key: string;
-      title: string;
-      url: string;
-    }[] = [];
+    const results = [];
 
     for (const preset of prompts) {
       const response = await openai.images.edit({
         model: "gpt-image-1",
-        image: file,
+        image: file, // 🔥 BUFFER YERİNE FILE
         prompt: preset.promptText,
         size: "1024x1024",
       });
 
-      const firstImage = response.data?.[0];
+      const img = response.data?.[0];
 
-      if (!firstImage?.b64_json) {
-        throw new Error(`No image returned for preset: ${preset.key}`);
+      if (!img?.b64_json) {
+        throw new Error("Image generation failed");
       }
 
       results.push({
         key: preset.key,
         title: preset.title,
-        url: `data:image/png;base64,${firstImage.b64_json}`,
+        url: `data:image/png;base64,${img.b64_json}`,
       });
     }
 
@@ -102,9 +95,9 @@ export async function POST(req: Request) {
     await prisma.creditLog.create({
       data: {
         shopId: shop.id,
-        type: "IMAGE_GENERATION",
         amount: -1,
-        reason: `Style generation used 1 credit for shop ${shop.shopDomain}`,
+        type: "IMAGE_GENERATION",
+        reason: "AI style generation",
       },
     });
 
@@ -121,7 +114,7 @@ export async function POST(req: Request) {
         error:
           error instanceof Error
             ? error.message
-            : "Image generation failed",
+            : "Generation failed",
       },
       { status: 500 }
     );
