@@ -34,7 +34,7 @@ export default function BuilderPage() {
         const [healthRes, promptRes] = await Promise.all([
           fetchWithActiveShop("/api/storefront/health"),
           fetchWithActiveShop(
-            `/api/storefront/prompts?shop=${encodeURIComponent(shop  `/api/storefront/prompts?shop=${encodeURIComponent(shop || "")}`)}`
+            `/api/storefront/prompts?shop=${encodeURIComponent(shop || "")}`
           ),
         ]);
 
